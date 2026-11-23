@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>公交刷卡 Parquet 分区布局试算</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>公交刷卡明细 · Parquet 分区布局试算</h1>
+  <p class="subtitle">只试算，不重写文件 · 逐日选择「仅按日」或「日+线路」布局 · 分区裁剪整份扫描</p>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>1. 上传数据与参数</h2>
+    <form id="analyze-form">
+      <div class="grid">
+        <div class="field">
+          <label for="batchesFile">批次明细 CSV
+            <span class="hint">列：入仓批次号、运营日、线路、行数</span>
+          </label>
+          <input type="file" id="batchesFile" name="batches_file" accept=".csv,text/csv" required />
+        </div>
+        <div class="field">
+          <label for="queriesFile">历史查询 CSV
+            <span class="hint">列：起始运营日、截止运营日、线路（留空=全线）、执行次数</span>
+          </label>
+          <input type="file" id="queriesFile" name="queries_file" accept=".csv,text/csv" required />
+        </div>
+        <div class="field">
+          <label for="maxRowsPerFile">单文件行数上限</label>
+          <input type="number" id="maxRowsPerFile" name="maxRowsPerFile" min="1" step="1" value="100000" required />
+        </div>
+        <div class="field">
+          <label for="fileBudget">全表文件数上限（预算）</label>
+          <input type="number" id="fileBudget" name="fileBudget" min="1" step="1" value="500" required />
+        </div>
+        <div class="field">
+          <label for="openCostRows">每次打开折合扫描行数</label>
+          <input type="number" id="openCostRows" name="openCostRows" min="1" step="1" value="1000" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" id="submit-btn">开始试算</button>
+        <button type="button" id="sample-btn" class="secondary">载入示例 CSV</button>
+        <span id="form-status" class="form-status"></span>
+      </div>
+    </form>
+  </section>
+
+  <section id="result-area" class="hidden"></section>
+</main>
+
+<footer class="footer">
+  FastAPI 试算服务 · 代价 = 命中文件数 × 每次打开折合扫描行数 × 执行次数
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
