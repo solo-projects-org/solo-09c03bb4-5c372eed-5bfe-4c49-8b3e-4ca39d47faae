@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+# 运行时生效更正（容器内走命名卷；本地裸跑写这里），样例归档 data/sample_archive 需入库
+/data/corrections/

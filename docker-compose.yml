@@ -5,9 +5,20 @@ services:
     container_name: bus-parquet-layout-planner
     ports:
       - "8000:8000"
+    environment:
+      # day_only=按日分区样例；改成 route_partitioned 可切换为日+线路分区样例
+      ARCHIVE_LAYOUT: ${ARCHIVE_LAYOUT:-day_only}
+      ARCHIVE_ROOT: /app/data/sample_archive/${ARCHIVE_LAYOUT:-day_only}
+      CORRECTION_DATA_DIR: /data/corrections
+    volumes:
+      # 生效更正持久化：容器重启/重建后仍沿用已生效的更正表
+      - correction-data:/data/corrections
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+volumes:
+  correction-data:

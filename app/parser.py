@@ -18,6 +18,18 @@ BATCH_ALIASES = {"入仓批次号", "批次号", "批次", "batch", "batch_id", 
 DAY_ALIASES = {"运营日", "日期", "日", "day", "date", "op_day", "opdate"}
 ROUTE_ALIASES = {"线路", "线路号", "线", "route", "route_id", "line", "line_id"}
 ROWS_ALIASES = {"行数", "记录行数", "条数", "rows", "row_count", "rowcount", "cnt"}
+SEQ_ALIASES = {
+    "流水号", "交易流水号", "流水", "交易序号", "序号",
+    "seq", "serial", "serial_no", "serialno", "transaction_id", "txn_id", "txnid",
+}
+ORIG_ROUTE_ALIASES = {
+    "原线路", "原线路号", "更正前线路", "旧线路",
+    "original_route", "old_route", "from_route", "route_before",
+}
+CORRECTED_ROUTE_ALIASES = {
+    "正确线路", "更正线路", "更正后线路", "新线路", "目标线路",
+    "corrected_route", "new_route", "to_route", "target_route", "route_after",
+}
 START_ALIASES = {
     "起始运营日", "开始运营日", "起始日期", "开始日期",
     "start", "start_day", "begin", "begin_day",
@@ -43,6 +55,16 @@ class QueryRecord:
     end_day: date
     route: Optional[str]  # None 表示查全线
     executions: int
+
+
+@dataclass(frozen=True)
+class CorrectionRow:
+    """一行线路更正：把（批次号, 流水号）对应的流水从原线路改到正确线路。"""
+
+    batch_id: str
+    seq: str
+    original_route: str
+    corrected_route: str
 
 
 def _decode(raw: bytes) -> str:
@@ -194,3 +216,79 @@ def parse_queries(raw: bytes) -> tuple[list[QueryRecord], list[str]]:
 
     records.sort(key=lambda q: (q.start_day, q.end_day, q.route or ""))
     return records, warnings
+
+
+def parse_corrections(raw: bytes) -> tuple[list[CorrectionRow], list[str]]:
+    """解析整份更正 CSV（列：批次号、流水号、原线路、正确线路）。
+
+    与“整份退回”规则对应的硬校验（任一不过即抛 ValueError）：
+      * 缺列 / 无数据行 / 任一字段为空；
+      * 同（批次号, 流水号）出现多条更正 —— 归档里的一条流水只能有一个正确线路。
+    原线路 == 正确线路的行允许上传，仅产生提示（最终是否有效由归档校验决定）。
+    """
+    warnings: list[str] = []
+    rows, fieldnames = _read_dict_rows(raw, "更正")
+    cols = _map_headers(
+        fieldnames,
+        {
+            "batch_id": BATCH_ALIASES,
+            "seq": SEQ_ALIASES,
+            "original_route": ORIG_ROUTE_ALIASES,
+            "corrected_route": CORRECTED_ROUTE_ALIASES,
+        },
+        "更正",
+    )
+    missing = [
+        k for k in ("batch_id", "seq", "original_route", "corrected_route")
+        if k not in cols
+    ]
+    if missing:
+        raise ValueError(
+            "更正CSV缺少必需列：" + "、".join(missing)
+            + f"；实际表头：{', '.join(fieldnames)}"
+        )
+
+    records: list[CorrectionRow] = []
+    seen: dict[tuple[str, str], int] = {}
+    noop_count = 0
+    for line_no, row in enumerate(rows, start=2):
+        batch_id = (row.get(cols["batch_id"]) or "").strip()
+        if not batch_id:
+            raise ValueError(f"更正CSV第 {line_no} 行批次号为空")
+        seq = (row.get(cols["seq"]) or "").strip()
+        if not seq:
+            raise ValueError(f"更正CSV第 {line_no} 行流水号为空")
+        original_route = (row.get(cols["original_route"]) or "").strip()
+        if not original_route:
+            raise ValueError(f"更正CSV第 {line_no} 行原线路为空")
+        corrected_route = (row.get(cols["corrected_route"]) or "").strip()
+        if not corrected_route:
+            raise ValueError(f"更正CSV第 {line_no} 行正确线路为空")
+        key = (batch_id, seq)
+        if key in seen:
+            raise ValueError(
+                f"更正CSV存在同批同号的多条更正：批次 {batch_id}、流水 {seq}"
+                f"（第 {seen[key]} 行与第 {line_no} 行），整份退回"
+            )
+        seen[key] = line_no
+        if original_route == corrected_route:
+            noop_count += 1
+        records.append(
+            CorrectionRow(
+                batch_id=batch_id,
+                seq=seq,
+                original_route=original_route,
+                corrected_route=corrected_route,
+            )
+        )
+
+    if noop_count:
+        warnings.append(
+            f"更正CSV中有 {noop_count} 行原线路与正确线路相同，不改变取数归属"
+        )
+    return records, warnings
+
+
+def parse_day(raw_text: str, field: str = "运营日") -> date:
+    """对外的日期解析入口，复用与 CSV 列一致的格式与报错规则。"""
+    return _parse_date(raw_text, field)

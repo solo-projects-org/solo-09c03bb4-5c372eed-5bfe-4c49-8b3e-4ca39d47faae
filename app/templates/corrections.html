@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>线路取数更正 · 公交刷卡明细</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <h1>线路取数更正 · 按更正后线路查明细</h1>
+  <p class="subtitle">归档 Parquet 不改写 · 整份校验通过才换表 · 重传不叠加 · 重启后沿用已生效更正</p>
+  <nav class="topnav">
+    <a href="/">分区布局试算</a>
+    <a href="/corrections" class="active">线路取数更正</a>
+  </nav>
+</header>
+
+<main class="container">
+  <section class="card">
+    <h2>1. 上传全量更正 CSV（按运营日整份替换）</h2>
+    <form id="upload-form">
+      <div class="grid">
+        <div class="field">
+          <label for="uploadDay">运营日</label>
+          <input type="date" id="uploadDay" name="day" required />
+        </div>
+        <div class="field">
+          <label for="correctionsFile">全量更正 CSV
+            <span class="hint">列：批次号、流水号、原线路、正确线路</span>
+          </label>
+          <input type="file" id="correctionsFile" name="corrections_file" accept=".csv,text/csv" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" id="upload-btn">校验并生效</button>
+        <button type="button" id="sample-valid-btn" class="secondary">载入有效样例</button>
+        <button type="button" id="sample-bad-btn" class="secondary">载入退回样例（找不到流水）</button>
+        <span id="upload-status" class="form-status"></span>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        退回规则：找不到流水、原线路对不上、同批同号多条更正 —— 任一命中即整份退回，继续用前一份；
+        未列出的流水沿用原线路。另在静态目录提供
+        <code>sample_corrections_mismatch.csv</code>（原线路不符）与
+        <code>sample_corrections_duplicate.csv</code>（同批同号重复）两份坏样例。
+      </p>
+    </form>
+    <div id="upload-result"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. 已生效更正（按运营日）</h2>
+    <div class="actions">
+      <button type="button" id="refresh-btn" class="secondary">刷新生效表</button>
+      <span id="archive-info" class="form-status"></span>
+    </div>
+    <div id="active-area" style="margin-top:14px"></div>
+  </section>
+
+  <section class="card">
+    <h2>3. 按运营日 + 线路查明细（按更正后线路取数）</h2>
+    <form id="query-form">
+      <div class="grid">
+        <div class="field">
+          <label for="queryDay">运营日</label>
+          <input type="date" id="queryDay" name="day" required />
+        </div>
+        <div class="field">
+          <label for="queryRoute">线路（更正后）</label>
+          <input type="text" id="queryRoute" name="route" placeholder="如 R1" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" id="query-btn">查询明细</button>
+        <span id="query-status" class="form-status"></span>
+      </div>
+    </form>
+    <div id="query-result" style="margin-top:16px"></div>
+  </section>
+</main>
+
+<footer class="footer">
+  单次查询选文件与筛流水使用同一份生效更正快照 · 按日分区读当日文件 · 按线路分区只开所查线路与改入原线路文件
+</footer>
+
+<script src="/static/corrections.js"></script>
+</body>
+</html>

@@ -33,6 +33,18 @@ body {
 }
 .topbar h1 { margin: 0 0 6px; font-size: 24px; }
 .subtitle { margin: 0; opacity: 0.85; font-size: 14px; }
+.topnav { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.topnav a {
+  color: #dbeafe;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+}
+.topnav a:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.topnav a.active { background: #fff; color: #1d4ed8; border-color: #fff; }
 
 .container { max-width: 1180px; margin: 24px auto 48px; padding: 0 20px; }
 

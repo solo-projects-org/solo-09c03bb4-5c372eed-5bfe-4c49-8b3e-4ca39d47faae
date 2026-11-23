@@ -1,9 +1,12 @@
-# 仅做试算，不写数据文件；容器内以非 root 用户运行
+# 试算服务不重写归档；仅线路更正表（JSON）写入 /data/corrections，挂载为持久卷
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    CORRECTION_DATA_DIR=/data/corrections \
+    ARCHIVE_ROOT=/app/data/sample_archive/day_only \
+    ARCHIVE_LAYOUT=day_only
 
 WORKDIR /app
 
@@ -11,9 +14,11 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
+COPY data ./data
 
 RUN useradd --create-home --uid 10001 appuser \
-    && chown -R appuser:appuser /app
+    && mkdir -p /data/corrections \
+    && chown -R appuser:appuser /app /data
 USER appuser
 
 EXPOSE 8000
